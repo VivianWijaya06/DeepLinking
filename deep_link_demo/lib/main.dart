@@ -17,38 +17,52 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _appLinks = AppLinks();
-
     initAppLinks();
   }
 
-  void initAppLinks() async {
+  Future<void> initAppLinks() async {
+    _appLinks = AppLinks();
+
     try {
       final initialUri = await _appLinks.getInitialLink();
-      if (initialUri != null) _handleIncomingLink(initialUri);
-    } catch (e) {
-      setState(() => _status = 'Failed to get initial link: $e');
-    }
+      if (initialUri != null) {
+        _handleIncomingLink(initialUri);
+      }
 
-    _sub = _appLinks.uriLinkStream.listen(
-      (uri) {
-        if (uri != null) _handleIncomingLink(uri);
-      },
-      onError: (err) {
-        setState(() => _status = 'Failed to receive link: $err');
-      },
-    );
+      _sub = _appLinks.uriLinkStream.listen(
+        (Uri uri) {
+          if (uri != null) _handleIncomingLink(uri);
+        },
+        onError: (err) {
+          setState(() => _status = 'Failed to receive link: $err');
+        },
+      );
+    } catch (e) {
+      setState(() => _status = 'Error initializing app links: $e');
+    }
   }
 
   void _handleIncomingLink(Uri uri) {
-    setState(() => _status = 'Received link: $uri');
+    setState(() => _status = 'Opened link: $uri');
 
-    if (uri.host == 'details') {
-      final id = uri.pathSegments.isNotEmpty ? uri.pathSegments[0] : 'unknown';
+    if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'details') {
+      final id = uri.queryParameters['id'] ?? 'unknown';
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => DetailScreen(id: id)),
+        MaterialPageRoute(builder: (_) => DetailScreen(id: id)),
       );
+      return;
+    }
+
+    if (uri.pathSegments.isNotEmpty && uri.pathSegments.first == 'profile') {
+      final username = uri.pathSegments.length > 1
+          ? uri.pathSegments[1]
+          : 'guest';
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileScreen(username: username)),
+      );
+      return;
     }
   }
 
@@ -61,9 +75,9 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'App Link Demo',
+      title: 'Deep Link Demo',
       home: Scaffold(
-        appBar: AppBar(title: Text('Home')),
+        appBar: AppBar(title: const Text('Home')),
         body: Center(child: Text(_status)),
       ),
     );
@@ -72,13 +86,26 @@ class _MyAppState extends State<MyApp> {
 
 class DetailScreen extends StatelessWidget {
   final String id;
-  const DetailScreen({required this.id});
+  const DetailScreen({required this.id, super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Details')),
+      appBar: AppBar(title: const Text('Details')),
       body: Center(child: Text('You opened item ID: $id')),
+    );
+  }
+}
+
+class ProfileScreen extends StatelessWidget {
+  final String username;
+  const ProfileScreen({required this.username, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: Center(child: Text('Hello, $username!')),
     );
   }
 }
